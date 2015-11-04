@@ -34,10 +34,14 @@ AND		= ([aA][nN][dD]) | "&&"
 NEQ		= "!=" | "<>"
 LEQ		= "<="
 GTE		= ">="
+SQRT    = [sS][qQ][rR][tT]
+LG      = [lg][gG]
 
 %%
 
 /* operators */
+{SQRT}		{ return Parser.SQRT; }
+{LG}		{ return Parser.LG; }
 {NEQ}		{ return Parser.NEQ; }
 {LEQ}		{ return Parser.LTE; }
 {GTE}		{ return Parser.GTE; }
@@ -58,7 +62,7 @@ GTE		= ">="
 "?" |
 ":" |
 "@" |
-";"		{ return (int) yycharat(0); }
+";" 			{ return (int) yycharat(0); }
 
 /* print some output */
 {PRINT}		{ return Parser.PRINT; }

@@ -13,9 +13,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Properties;
 import java.sql.*;
-import javax.swing.JOptionPane;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
+import javax.swing.JOptionPane; 
+import java.util.regex.Matcher; 
+import java.util.regex.Pattern; 
+
 
 %}
 
@@ -44,6 +45,8 @@ import java.util.regex.Pattern;
 %left '[' ']'
 %left '-' '+'
 %left '*' '/' '%' '^'
+%left SQRT
+%left LG
 %left NEG POS '#'			/* unary minus, plus, strlen */
 
 %%
@@ -60,12 +63,15 @@ line:			PRINT expStr ';'										{
 																			System.out.println( "= " + $2 );
 																			$$ = null;
 																		}
+																		
 				| SET '@' SYMBOL '=' exp ';'							{
 																			// System.out.print( "\nSYMBOL='" + $3 + "' exp='" + $5 + "'" );
 																			setSymbol( $3, $5 );
 																			$$ = $5;
 																		}
+																		
 				| EVAL exp ';'											{ $$ = $2; }
+				
 				| SETINST STR ';'										{	/* $2 == SmallSQL command */
 																			try
 																			{
@@ -77,6 +83,7 @@ line:			PRINT expStr ';'										{
 																			}
 																			$$ = null;
 																		}
+																		
 				| SYMTAB ';'											{
 																			printSymbolTable();
 																			$$ = null;
@@ -85,6 +92,7 @@ line:			PRINT expStr ';'										{
 																			deleteSymbol( $3 );
 																			$$ = null;
 																		}
+																		
 				| CLEAR ';'												{
 																			clearSymbolTable();
 																			$$ = null;
@@ -97,11 +105,14 @@ expStr:			exp														{
 																			else
 																				$$ = (String)$1;
 																		}
+																		
 				| expStr ',' exp										{ $$ = $1 + " " + $3; }
 				;
 
 exp:			NUM														{ $$ = $1; }
 				| STR													{ $$ = $1; }
+				
+				
 				| '@' SYMBOL											{
 																			Object value = symbolTable.get( $2 );
 																			if ( value == null ) // not in symbolTable yet
@@ -144,6 +155,7 @@ exp:			NUM														{ $$ = $1; }
 																				$$ = new Double( 0.0 );
 																			}
 																		}
+																		
 				| exp '+' exp											{
 																			if ( $1 instanceof Double && $3 instanceof Double )
 																			{
@@ -159,6 +171,7 @@ exp:			NUM														{ $$ = $1; }
 																				$$ = new Double( 0.0 );
 																			}
 																		}
+																		
 				| exp '-' exp											{
 																			if ( $1 instanceof Double && $3 instanceof Double )
 																			{
@@ -181,6 +194,7 @@ exp:			NUM														{ $$ = $1; }
 																				$$ = new Double( 0.0 );
 																			}
 																		}
+																		
 				| exp '/' exp											{
 																			if ( $1 instanceof Double && $3 instanceof Double )
 																			{
@@ -192,6 +206,19 @@ exp:			NUM														{ $$ = $1; }
 																				$$ = new Double( 0.0 );
 																			}
 																		}
+																		
+				| exp '^' exp											{
+																			if ( $1 instanceof Double && $3 instanceof Double )
+																			{
+																				$$ = Math.pow((Double)$1 , (Double)$3);
+																			}
+																			else
+																			{
+																				System.out.print( "Error: THis is the error" );
+																				//$$ = new Double( 0.0 );
+																			}
+																		}																		
+																		
 				| exp '%' exp											{
 																			if ( $1 instanceof Double && $3 instanceof Double )
 																			{
@@ -203,6 +230,7 @@ exp:			NUM														{ $$ = $1; }
 																				$$ = new Double( 0.0 );
 																			}
 																		}
+																		
 				| '-' exp %prec NEG										{ $$ = - ((Double)$2); }
 				| '+' exp %prec POS										{ $$ = + ((Double)$2); }
 				| exp '?' exp ':' exp									{ if ( $1 instanceof Double && ((Double)$1).doubleValue() != 0.0 ) $$ = $3; else $$ = $5; }
@@ -253,33 +281,45 @@ exp:			NUM														{ $$ = $1; }
 																			else
 																				$$ = new Double( 0.0 );
 																		}
-				| exp "^" exp											{
-																			if ( $1 instanceof Double && $3 instanceof Double)
-																			{
-																				$$ = Math.pow( (Double)$1, (Double)$3 );
-																			}
+																		
+				|  exp	SQRT										    {   // sqrt
+																			if ( $1 instanceof Double  )																																					    
+																				$$ = Math.sqrt((Double)$1 );
+																																						
 																			else
-																			{
-																				System.out.print( "Error: trying to do '" + $1 + "' / '" + $3 + "'" );
-																				$$ = new Double( 0.0 );
-																			}
+																				System.out.print( "Error: trying to do SQRT '" + $1 +" '" );
+																				//$$ = new Double( 0.0 );
 																		}
-				| exp AND exp											{
-																			if ( $1 instanceof Double && $3 instanceof Double && ((Double)$1).doubleValue() == 1.0 && ((Double)$3).doubleValue() == 1.0)
+																		
+				|  exp	LG										       {   // logarithm function 
+																			if ( $1 instanceof Double  )																																					    
+																				$$ = Math.log((Double)$1 );
+																																						
+																			else
+																				System.out.print( "Error: trying to do logarithm '" + $1 +" '" );
+																				//$$ = new Double( 0.0 );
+																		}																		
+
+																																					
+																		
+			| exp AND exp											{
+																			if ( $1 instanceof Double && $3 instanceof Double && ((Double)$1).doubleValue()==1.0 && ((Double)$3).doubleValue()==1.0 )
 																				$$ = new Double( 1.0 );
-																			else if ( $1 instanceof String && $3 instanceof String && $1.equals( "1.0" ) && $3.equals( "1.0" ))
+																			else if ( $1 instanceof String && $3 instanceof String && ($1.equals("1.0") && $3.equals("1.0")))
+																				$$ = new Double( 1.0 );
+																			else
+																				$$ = new Double( 0.0 );
+																		}	
+																		
+			| exp OR exp											{
+																			if ( $1 instanceof Double && $3 instanceof Double && ((Double)$1).doubleValue()==1.0 || ((Double)$3).doubleValue()==1.0 )
+																				$$ = new Double( 1.0 );
+																			else if ( $1 instanceof String && $3 instanceof String && ($1.equals("1.0") || $3.equals("1.0")))
 																				$$ = new Double( 1.0 );
 																			else
 																				$$ = new Double( 0.0 );
 																		}
-				| exp OR exp											{
-																			if ( $1 instanceof Double && $3 instanceof Double && ((Double)$1).doubleValue() == 1.0 || ((Double)$3).doubleValue() == 1.0 )
-																				$$ = new Double( 1.0 );
-																			else if ( $1 instanceof String && $3 instanceof String && $1.equals( "1.0" ) || $3.equals( "1.0" ))
-																				$$ = new Double( 1.0 );
-																			else
-																				$$ = new Double( 0.0 );
-																		}
+																		
 				;
 
 %%
@@ -366,141 +406,195 @@ ResultSet SmallSQL( String smallSqlCmd ) throws SQLException
 
 void printSymbolTable()
 {
-	for (Map.Entry<String, Object> entry : symbolTable.entrySet()) {
-		String key = entry.getKey();
-		Object value = entry.getValue();
-		System.out.println("Key " + key + " Value " + value);
-	}
+		String key ="";  						// Key/symbol from ArrayList
+		ArrayList valueArr;						// ArrayList casted from HashMap Value
+		String[] tmpValue = new String[100];    // Temporary regular array to acomulate HashMap values per record
+		
+		int lengthArr=0;                        // Length of the ArrayList per key/symbol
 
+		for (Map.Entry<String,Object> entry : symbolTable.entrySet()) {
+			
+			
+			Object value = entry.getValue();    // getting object value to identify the type of the retrived HashMap value
+			
+			if ( value instanceof ArrayList ){
+				
+				key += "  " + entry.getKey();
+				
+				valueArr = (ArrayList)entry.getValue();
+			 
+				Object convertedListToArray[] = valueArr.toArray();	// convert  ArrayList to the regular array to concatenate row values		 
+				lengthArr	 = convertedListToArray.length ;			 
+				
+				for(int i = 0; i < convertedListToArray.length; i++) 
+			   {						
+					tmpValue[i] += "  " + convertedListToArray[i].toString();	//concatenate row values						  	   
+			   }
+			   
+			} else{
+				System.out.print(" Not in aray. Key : " + entry.getKey() + " Value : " + value + "\n"); // if HashMap value not ArrayList then just print Key-Value.
+			}			
+		  		   
+		}
+		
+		if (lengthArr >0) // if ArrayList was not empty then print Key - Values as in SQL table 'emp' 
+		{
+			System.out.print( key + "\n");
+			 
+			for(int i = 0; i < lengthArr; i++)
+			   {		   
+				   System.out.print( tmpValue[i] + "\n");		   		   
+			   }
+		}
+
+	/* completed */
 }
 
 
 void deleteSymbol( String symbolName )
 {
-	/* to do */
+	
+		for( Iterator<Map.Entry<String,Object>> it = symbolTable.entrySet().iterator(); it.hasNext(); )
+		{
+		
+			 Map.Entry<String, Object> entry = it.next();			 			 
+			 
+			 if (entry.getKey().equals( symbolName)  ) {
+				 
+				  it.remove();
+			 }
+		}
+
+	
+	/* done */
 }
 
 
 void clearSymbolTable()
 {
-	/* to do */
+	symbolTable.clear();
+	
+	/* done */
 }
 
 
-public static void procIf( String cmdStr )
-{
-	String IF = "[iI][fF]\\s\\((.*)\\)\\s[tT][hH][eE][nN](.*);$";
-	String IFELSE = "[iI][fF]\\s\\((.*)\\)\\s[tT][hH][eE][nN](.*);[\n\r]{0,}[eE][lL][sS][eE](.*);";
-	
-	Boolean ifStatement = false;
-	Boolean ifelseStatement = false;
-	Boolean commandResult = false;
-	
-	Pattern patternIf = Pattern.compile(IF);
-	Matcher matcherIf = patternIf.matcher(cmdStr);
-	
-	Pattern patternIfElse = Pattern.compile(IFELSE);
-	Matcher matcherIfElse = patternIfElse.matcher(cmdStr);
-	
-	String command = "";
-	String commandIfTrue = "";
-	String commandElse = "";
-	
-	if (matcherIf.find()) 
-	{
-		ifStatement = true;
-		command = "eval " + matcherIf.group(1) + ";";
-		commandIfTrue = matcherIf.group(2) + ";";
-    }
-	  
-	if (matcherIfElse.find()) 
-	{
-		ifelseStatement = true;
-		command = "eval " + matcherIfElse.group(1) + ";";
-		commandIfTrue = matcherIfElse.group(2) + ";";
-		commandElse = matcherIfElse.group(3) + ";";
-	}
-	
-	if(ifStatement)
-	{
-		try
-		{
-			BYaccJ(command);
-			
-			if ( result instanceof Double && ((Double)result).doubleValue() == 1.0 )
-			{
-				commandResult = true;
-			}
-			else
-			{
-				commandResult = false;
-			}
-			
-			if (commandResult)
-			{
-				try
-				{
-					BYaccJ(commandIfTrue);
-				}
-				catch (Exception ex)
-				{
-					System.out.println("Exception was caught: " + ex);
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			System.out.println("Exception was caught: " + ex);
-		}
-	}
-	
-	if(ifelseStatement)
-	{
-		try
-		{
-			BYaccJ(command);
-			
-			if ( result instanceof Double && ((Double)result).doubleValue() == 1.0 )
-			{
-				commandResult = true;
-			}
-			else
-			{
-				commandResult = false;
-			}
-			
-			System.out.println(commandResult);
-			
-			if (commandResult)
-			{
-				try
-				{
-					BYaccJ(commandIfTrue);
-				}
-				catch (Exception ex)
-				{
-					System.out.println("Exception was caught: " + ex);
-				}
-			}
-			else
-			{
-				try
-				{
-					BYaccJ(commandElse);
-				}
-				catch (Exception ex)
-				{
-					System.out.println("Exception was caught: " + ex);
-				}
-			}
-		}
-		catch (Exception ex)
-		{
-			System.out.println("Exception was caught: " + ex);
-		}
-	}
-	
-}
+
+
+public static void procIf( String cmdStr ) 
+{ 
+	String IF = "[iI][fF]\\s\\((.*)\\)\\s[tT][hH][eE][nN](.*);$"; 
+	String IFELSE = "[iI][fF]\\s\\((.*)\\)\\s[tT][hH][eE][nN](.*);[\n\r]{0,}[eE][lL][sS][eE](.*);"; 
+	 
+	Boolean ifStatement = false; 
+	Boolean ifelseStatement = false; 
+	Boolean commandResult = false; 
+	 
+	Pattern patternIf = Pattern.compile(IF); 
+	Matcher matcherIf = patternIf.matcher(cmdStr); 
+	 
+	Pattern patternIfElse = Pattern.compile(IFELSE); 
+	Matcher matcherIfElse = patternIfElse.matcher(cmdStr); 
+	 
+	String command = ""; 
+	String commandIfTrue = ""; 
+	String commandElse = ""; 
+	 
+	if (matcherIf.find())  
+	{ 
+		ifStatement = true; 
+		command = "eval " + matcherIf.group(1) + ";"; 
+		commandIfTrue = matcherIf.group(2) + ";"; 
+    } 
+	   
+	if (matcherIfElse.find())  
+	{ 
+		ifelseStatement = true; 
+		command = "eval " + matcherIfElse.group(1) + ";"; 
+		commandIfTrue = matcherIfElse.group(2) + ";"; 
+		commandElse = matcherIfElse.group(3) + ";"; 
+	} 
+	 
+	if(ifStatement) 
+	{ 
+		try 
+		{ 
+			BYaccJ(command); 
+			 
+			if ( result instanceof Double && ((Double)result).doubleValue() == 1.0 ) 
+			{ 
+				commandResult = true; 
+			} 
+			else 
+			{ 
+				commandResult = false; 
+			} 
+			 
+			if (commandResult) 
+			{ 
+				try 
+				{ 
+					BYaccJ(commandIfTrue); 
+				} 
+				catch (Exception ex) 
+				{ 
+					System.out.println("Exception was caught: " + ex); 
+				} 
+			} 
+		} 
+		catch (Exception ex) 
+		{ 
+			System.out.println("Exception was caught: " + ex); 
+		} 
+	} 
+	 
+	if(ifelseStatement) 
+	{ 
+		try 
+		{ 
+			BYaccJ(command); 
+			 
+			if ( result instanceof Double && ((Double)result).doubleValue() == 1.0 ) 
+			{ 
+				commandResult = true; 
+			} 
+			else 
+			{ 
+				commandResult = false; 
+			} 
+			 
+			System.out.println(commandResult); 
+			 
+			if (commandResult) 
+			{ 
+				try 
+				{ 
+					BYaccJ(commandIfTrue); 
+				} 
+				catch (Exception ex) 
+				{ 
+					System.out.println("Exception was caught: " + ex); 
+				} 
+			} 
+			else 
+			{ 
+				try 
+				{ 
+					BYaccJ(commandElse); 
+				} 
+				catch (Exception ex) 
+				{ 
+					System.out.println("Exception was caught: " + ex); 
+				} 
+			} 
+		} 
+		catch (Exception ex) 
+		{ 
+			System.out.println("Exception was caught: " + ex); 
+		} 
+	} 
+	 
+} 
+
 
 
 public static void BYaccJ( String command ) throws IOException
@@ -677,22 +771,31 @@ public static HashMap<String,ArrayList<Object>> getRSasHashMap( ResultSet rs ) t
 		columns.add( new ArrayList<Object>() ); // add columns[i]
 	}
 	
+	int c=0;
+	
 	while( rs.next() )
 	{
+		c++;
+		System.out.println( "while loop: " + c );
 		for( int i = 1; i <= count; i++ )
 		{
+			System.out.println( "for loop: " + i );
+			
 			aColumn = columns.get( i );
 			columnType = md.getColumnType( i );
 			if ( columnType == java.sql.Types.VARCHAR ||
 				 columnType == java.sql.Types.DOUBLE )
 			{
 				aColumn.add( rs.getObject(i) );
+				System.out.println( "rs.getObject(i) : "+rs.getObject(i));
 			}
 			else if ( columnType == java.sql.Types.INTEGER )
 			{
 				intType = (Integer)rs.getObject(i);
 				dblType = new Double( intType.doubleValue() );
 				aColumn.add( dblType );
+				
+				System.out.println( "rs.getObject(i) id INT : "+rs.getObject(i));
 			}
 			else
 			{
